@@ -1,7 +1,7 @@
 mod utils;
 mod processor;
 mod cli;
-
+mod table;
 use std::error::Error;
 use processor::CSVProcessor;
 use cli::Args;

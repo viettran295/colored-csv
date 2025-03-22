@@ -2,6 +2,7 @@ use std::{fs::File, io::BufReader, collections::HashMap};
 use csv::{Reader, ReaderBuilder};
 use colored::*;
 use log::{debug, error};
+use crate::table::TableFormatter;
 
 pub struct CSVProcessor {
     delimiter: u8
@@ -69,7 +70,8 @@ impl CSVProcessor {
     }
 
     fn colorized_contents(&self, reader: &mut Reader<BufReader<File>>, delimiter: u8) -> String {
-        let mut contents: String = String::new();
+        let mut header_vec: Vec<String> = Vec::new();
+        let mut contents_vec: Vec<Vec<String>> = Vec::new();
         let mut color_idx: usize = 0;
         let colors: Vec<Color> = vec![
             Color::BrightGreen,
@@ -84,34 +86,31 @@ impl CSVProcessor {
             for header in headers.iter() {
                 let color = colors[color_idx];
                 let colored_txt = header.color(color);
-                contents.push_str(&colored_txt.to_string());
-                contents.push(delimiter as char);
+                header_vec.push(colored_txt.to_string());
                 color_idx = (color_idx + 1) % colors.len();
             }  
-            contents.pop();
-            contents.push('\n');
         }
 
         for record in reader.records(){
+            let mut row: Vec<String> = Vec::new();
             color_idx = 0;
             match record{
                 Ok(record) => {
                     for field in record.iter() {
                         let color = colors[color_idx];
                         let colored_txt = field.color(color);
-                        contents.push_str(&colored_txt.to_string());
-                        contents.push(delimiter as char);
+                        row.push(colored_txt.to_string());
                         color_idx = (color_idx + 1) % colors.len();
                     }
-                    contents.pop();
-                    contents.push('\n');
                 }
                 Err(e) => {
                     error!("Error reading record: {}", e);
                 }
             }
+            contents_vec.push(row);
         }
-        return  contents;
+        let table = TableFormatter::new(header_vec, contents_vec);
+        return  table.to_string();
     }
 }
 
