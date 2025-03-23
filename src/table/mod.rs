@@ -34,14 +34,14 @@ impl TableFormatter {
         for (row, width) in rows.iter().zip(widths) {
             output.push(format!("{:<width$}", row, width = width));
         }
-        return output.join(" | ")
+        return output.join(" ┃ ")
     }
 
     fn create_border(widths: &[usize], left: char, middle: char, right: char) -> String {
         let mut border = String::from(left);
         
         for (i, &width) in widths.iter().enumerate() {
-            border.push_str(&"─".repeat(width - 7));
+            border.push_str(&"━".repeat(width - 7));
             if i < widths.len() - 1 {
                 border.push(middle);
             }
@@ -52,15 +52,15 @@ impl TableFormatter {
     }
 
     fn create_top_border(widths: &[usize]) -> String {
-        Self::create_border(widths, '┌', '┼', '┐')
+        Self::create_border(widths, '┏', '┳', '┓')
     }
 
     fn create_bottom_border(widths: &[usize]) -> String {
-        Self::create_border(widths, '└', '┴', '┘')
+        Self::create_border(widths, '┗', '┻', '┛')
     }
 
     fn create_separator(widths: &[usize]) -> String {
-        Self::create_border(widths, '├', '┼', '┤')
+        Self::create_border(widths, '┣', '╋', '┫')
     }
 
     pub fn to_string(&self) -> String {
@@ -82,13 +82,13 @@ impl TableFormatter {
         // Combine all parts
         let mut output = vec![
             top_border,
-            format!("| {} |", header_row),
+            format!("┃ {} ┃", header_row),
             separator,
         ];
         
         // Add data rows with borders
         for row in data_rows {
-            output.push(format!("| {} |", row));
+            output.push(format!("┃ {} ┃", row));
         }
         
         output.push(bottom_border);
