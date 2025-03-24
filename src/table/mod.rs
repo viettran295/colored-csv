@@ -1,18 +1,16 @@
-use std::{fmt::format, vec};
-use colored::*;
+use std::vec;
 
 pub struct TableFormatter {
     headers: Vec<String>,
     rows: Vec<Vec<String>>,
-    compensate: i32,
 }
 
 impl TableFormatter {
+    const COMPENSATE: usize = 7;
     pub fn new(headers: Vec<String>, rows: Vec<Vec<String>>) -> Self {
         Self { 
             headers, 
             rows,
-            compensate: 7,
         }
     }
 
@@ -41,7 +39,7 @@ impl TableFormatter {
         let mut border = String::from(left);
         
         for (i, &width) in widths.iter().enumerate() {
-            border.push_str(&"━".repeat(width - 7));
+            border.push_str(&"━".repeat(width - Self::COMPENSATE));
             if i < widths.len() - 1 {
                 border.push(middle);
             }

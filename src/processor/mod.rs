@@ -31,7 +31,7 @@ impl CSVProcessor {
         let mut rdr = ReaderBuilder::new()
             .delimiter(self.delimiter)
             .from_reader(reader);
-        return self.colorized_contents(&mut rdr, self.delimiter);
+        return self.colorized_contents(&mut rdr);
     }
 
     fn detect_delimiter(&self, file_path: &str) -> u8 {
@@ -69,7 +69,7 @@ impl CSVProcessor {
             .unwrap_or(b',') // Default to comma if no clear delimiter found
     }
 
-    fn colorized_contents(&self, reader: &mut Reader<BufReader<File>>, delimiter: u8) -> String {
+    fn colorized_contents(&self, reader: &mut Reader<BufReader<File>>) -> String {
         let mut header_vec: Vec<String> = Vec::new();
         let mut contents_vec: Vec<Vec<String>> = Vec::new();
         let mut color_idx: usize = 0;
