@@ -1,16 +1,15 @@
 pub mod csv_data;
 use color_eyre::Result;
 use ratatui::{
-    crossterm::event::{self, Event, KeyCode, KeyEventKind},
-    layout::{Constraint, Layout, Margin, Rect},
-    style::{self, Modifier, Style}, 
-    text::Text, widgets::{
-        HighlightSpacing, Row, Scrollbar, 
-        ScrollbarOrientation,ScrollbarState, 
-        Table, TableState,
+    crossterm::event::{self, Event, KeyCode, KeyEventKind}, layout::{Constraint, Layout, Margin, Rect}, style::{self, Modifier, Style}, text::Text, widgets::{
+        Block, BorderType, Paragraph, Row, Scrollbar, ScrollbarOrientation, ScrollbarState, Table, TableState
     }, DefaultTerminal, Frame
 };
 use csv_data::CSVData;
+
+const INFO_TEXT: [&str; 1] = [
+    "(Esc) quit | (↑ / k) move up | (↓ / j) move down | (← / h) move left | (→ / l) move right",
+];
 
 const ITEM_HEIGHT: usize = 4;
 
@@ -28,6 +27,25 @@ impl TableTUI {
             scroll_state: ScrollbarState::default().position(0),
             column_widths: Self::max_col_width(data),
             items: Some(data.clone())
+        }
+    }
+
+    pub fn run(mut self, mut terminal: DefaultTerminal) -> Result<()> {
+        loop {
+            terminal.draw(|frame| self.draw(frame))?;
+
+            if let Event::Key(key) = event::read()? {
+                if key.kind == KeyEventKind::Press {
+                    match key.code {
+                        KeyCode::Char('q') | KeyCode::Esc => return Ok(()),
+                        KeyCode::Char('j') | KeyCode::Down => self.next_row(),
+                        KeyCode::Char('k') | KeyCode::Up => self.previous_row(),
+                        KeyCode::Char('l') | KeyCode::Right => self.next_column(),
+                        KeyCode::Char('h') | KeyCode::Left => self.previous_column(),
+                        _ => {}
+                    }
+                }
+            }
         }
     }
 
@@ -55,11 +73,7 @@ impl TableTUI {
         return col_width;
     }
 
-    pub fn set_contents(&mut self, data: CSVData) {
-        self.items = Some(data);
-    }
-
-    pub fn next_row(&mut self) {
+    fn next_row(&mut self) {
         let i = match self.state.selected() {
             Some(i) => {
                 if i >= self.items
@@ -79,7 +93,7 @@ impl TableTUI {
         self.scroll_state = self.scroll_state.position(i * ITEM_HEIGHT);
     }
 
-    pub fn previous_row(&mut self) {
+    fn previous_row(&mut self) {
         let i = match self.state.selected() {
             Some(i) => {
                 if i == 0 {
@@ -99,58 +113,45 @@ impl TableTUI {
         self.scroll_state = self.scroll_state.position(i * ITEM_HEIGHT);
     }
 
-    pub fn next_column(&mut self) {
+    fn next_column(&mut self) {
         self.state.select_next_column();
     }
 
-    pub fn previous_column(&mut self) {
+    fn previous_column(&mut self) {
         self.state.select_previous_column();
     }
-
-    pub fn run(mut self, mut terminal: DefaultTerminal) -> Result<()> {
-        loop {
-            terminal.draw(|frame| self.draw(frame))?;
-
-            if let Event::Key(key) = event::read()? {
-                if key.kind == KeyEventKind::Press {
-                    match key.code {
-                        KeyCode::Char('q') | KeyCode::Esc => return Ok(()),
-                        KeyCode::Char('j') | KeyCode::Down => self.next_row(),
-                        KeyCode::Char('k') | KeyCode::Up => self.previous_row(),
-                        KeyCode::Char('l') | KeyCode::Right => self.next_column(),
-                        KeyCode::Char('h') | KeyCode::Left => self.previous_column(),
-                        _ => {}
-                    }
-                }
-            }
-        }
-    }
-
+    
     fn draw(&mut self, frame: &mut Frame) {
-        let vertical = &Layout::vertical([Constraint::Min(5), Constraint::Length(4)]);
+        let vertical = &Layout::vertical([Constraint::Min(5), Constraint::Length(3)]);
         let rects = vertical.split(frame.area());
 
         self.render_table(frame, rects[0]);
         self.render_scrollbar(frame, rects[0]);
+        self.render_footer(frame, rects[1]);
     }
 
     fn render_table(&mut self, frame: &mut Frame, area: Rect) {
         let selected_row_style = Style::default()
             .add_modifier(Modifier::REVERSED);
         let selected_cell_style = Style::default()
-            .add_modifier(Modifier::REVERSED)
+            .add_modifier(Modifier::ITALIC)
             .bg(style::Color::Black)
             .fg(style::Color::White);
+        let header_style = Style::default()
+            .bg(style::Color::LightCyan)
+            .fg(style::Color::White)
+            .add_modifier(Modifier::BOLD);
 
         let mut rows: Vec<Row> = Vec::new();
-        let mut headers: Row = Row::new(vec![""]);
+        let headers: Row;
 
         match &self.items {
             Some(items) => {
                 headers = Row::new(items.header
                     .iter()
                     .map(|h| h.as_str())
-                    .collect::<Vec<_>>());
+                    .collect::<Vec<_>>())
+                    .style(header_style);
 
                 for row_str in items.content.iter() {
                     let temp = Row::new(row_str.iter()
@@ -168,21 +169,10 @@ impl TableTUI {
                                         .into_iter()    
                                         .map(|length| Constraint::Length(length))
                                         .collect();
-        let bar = " █ ";
-        let t = Table::new(
-            rows,
-            col_widths,
-        )
-        .header(headers)
-        .row_highlight_style(selected_row_style)
-        .cell_highlight_style(selected_cell_style)
-        .highlight_symbol(Text::from(vec![
-            "".into(),
-            bar.into(),
-            bar.into(),
-            "".into(),
-        ]))
-        .highlight_spacing(HighlightSpacing::Always);
+        let t = Table::new(rows, col_widths)
+            .header(headers)
+            .row_highlight_style(selected_row_style)
+            .cell_highlight_style(selected_cell_style);
         frame.render_stateful_widget(t, area, &mut self.state);
     }
 
@@ -198,5 +188,15 @@ impl TableTUI {
             }),
             &mut self.scroll_state,
         );
+    }
+
+    fn render_footer(&self, frame: &mut Frame, area: Rect) {
+        let footer = Paragraph::new(Text::from(INFO_TEXT.join(" ")))
+            .centered()
+            .block(
+                Block::bordered()
+                    .border_type(BorderType::Double)
+            );
+        frame.render_widget(footer, area);
     }
 }
